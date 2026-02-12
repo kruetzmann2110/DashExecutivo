@@ -1,0 +1,176 @@
+-- DAX Measures for Executive Dashboard
+-- These measures provide key metrics and calculations for the dashboard
+
+-- ============================================
+-- SALES MEASURES
+-- ============================================
+
+-- Total Sales
+Total Sales = SUM(FactSales[NetAmount])
+
+-- Total Sales Last Year
+Total Sales LY = 
+CALCULATE(
+    [Total Sales],
+    SAMEPERIODLASTYEAR(DimTime[Date])
+)
+
+-- Sales Growth %
+Sales Growth % = 
+DIVIDE(
+    [Total Sales] - [Total Sales LY],
+    [Total Sales LY],
+    0
+)
+
+-- Sales YTD
+Sales YTD = 
+TOTALYTD(
+    [Total Sales],
+    DimTime[Date]
+)
+
+-- Sales MTD
+Sales MTD = 
+TOTALMTD(
+    [Total Sales],
+    DimTime[Date]
+)
+
+-- Average Transaction Value
+Average Transaction Value = 
+DIVIDE(
+    [Total Sales],
+    DISTINCTCOUNT(FactSales[SalesKey]),
+    0
+)
+
+-- ============================================
+-- PROFIT MEASURES
+-- ============================================
+
+-- Total Profit
+Total Profit = SUM(FactSales[ProfitAmount])
+
+-- Profit Margin %
+Profit Margin % = 
+DIVIDE(
+    [Total Profit],
+    [Total Sales],
+    0
+)
+
+-- Profit vs LY
+Profit vs LY = 
+CALCULATE(
+    [Total Profit],
+    SAMEPERIODLASTYEAR(DimTime[Date])
+)
+
+-- Profit Growth %
+Profit Growth % = 
+DIVIDE(
+    [Total Profit] - [Profit vs LY],
+    [Profit vs LY],
+    0
+)
+
+-- ============================================
+-- BUDGET MEASURES
+-- ============================================
+
+-- Total Budget
+Total Budget = SUM(FactBudget[BudgetAmount])
+
+-- Budget vs Actual
+Budget vs Actual = [Total Sales] - [Total Budget]
+
+-- Budget Achievement %
+Budget Achievement % = 
+DIVIDE(
+    [Total Sales],
+    [Total Budget],
+    0
+)
+
+-- ============================================
+-- KPI MEASURES
+-- ============================================
+
+-- KPI Current Value
+KPI Current Value = SUM(FactKPI[KPIValue])
+
+-- KPI Target
+KPI Target = SUM(FactKPI[KPITarget])
+
+-- KPI Achievement %
+KPI Achievement % = 
+DIVIDE(
+    [KPI Current Value],
+    [KPI Target],
+    0
+)
+
+-- KPI Status
+KPI Status = 
+SWITCH(
+    TRUE(),
+    [KPI Achievement %] >= 1, "✓ Achieved",
+    [KPI Achievement %] >= 0.9, "⚠ Near Target",
+    "✗ Below Target"
+)
+
+-- ============================================
+-- CUSTOMER MEASURES
+-- ============================================
+
+-- Total Customers
+Total Customers = DISTINCTCOUNT(FactSales[CustomerKey])
+
+-- New Customers
+New Customers = 
+CALCULATE(
+    DISTINCTCOUNT(FactSales[CustomerKey]),
+    FILTER(
+        FactSales,
+        FactSales[TimeKey] = MIN(FactSales[TimeKey])
+    )
+)
+
+-- Customer Retention Rate
+Customer Retention Rate = 
+VAR CustomersLY = 
+    CALCULATE(
+        DISTINCTCOUNT(FactSales[CustomerKey]),
+        SAMEPERIODLASTYEAR(DimTime[Date])
+    )
+VAR ReturningCustomers = 
+    CALCULATE(
+        DISTINCTCOUNT(FactSales[CustomerKey]),
+        FILTER(
+            FactSales,
+            FactSales[CustomerKey] IN VALUES(FactSales[CustomerKey])
+        )
+    )
+RETURN
+    DIVIDE(ReturningCustomers, CustomersLY, 0)
+
+-- ============================================
+-- PRODUCT MEASURES
+-- ============================================
+
+-- Total Products Sold
+Total Products Sold = SUM(FactSales[Quantity])
+
+-- Top Product
+Top Product = 
+TOPN(
+    1,
+    VALUES(DimProduct[ProductName]),
+    [Total Sales],
+    DESC
+)
+
+-- Product Performance Score
+Product Performance Score = 
+([Total Sales] * 0.5) + ([Total Profit] * 0.3) + ([Total Products Sold] * 0.2)
